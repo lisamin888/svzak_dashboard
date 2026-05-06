@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm start:*)",
+      "Bash(node -e ' *)",
+      "Bash(echo \"PID: $!\")",
+      "Bash(npx electron *)",
+      "Bash(chmod +x \"/Users/gimgyeongmin/Library/CloudStorage/GoogleDrive-silver3609@gmail.com/다른 컴퓨터/home/5_claude/svzak-dashboard/node_modules/.bin/electron\")",
+      "Bash(echo \"Started PID: $!\")",
+      "Bash(open *)",
+      "Bash(npm install *)",
+      "Bash(sudo chown *)",
+      "Bash(pkill -f \"electron\")",
+      "mcp__claude_ai_Notion__notion-search",
+      "mcp__claude_ai_Notion__notion-fetch",
+      "mcp__claude_ai_Notion__notion-create-database",
+      "mcp__claude_ai_Notion__notion-create-pages",
+      "mcp__claude_ai_Notion__notion-update-data-source",
+      "mcp__claude_ai_Notion__notion-update-page",
+      "Bash(pkill -f \"electron .\")",
+      "Bash(node_modules/.bin/electron .:*)",
+      "Bash(node:*)"
+    ]
+  }
+}

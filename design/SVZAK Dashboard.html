@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<title>SVZAK Dashboard — Zen Mono</title>
+<link rel="stylesheet" href="styles/fonts.css" />
+<style>
+  html, body { margin: 0; padding: 0; min-height: 100%; background: #efece4; }
+  body {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 28px 20px 60px;
+    box-sizing: border-box;
+  }
+  .controls {
+    display: flex; align-items: center; gap: 16px;
+    padding: 8px 12px;
+    background: rgba(255,255,255,0.7);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 999px;
+    margin-bottom: 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: #555;
+    letter-spacing: 0.1em;
+  }
+  .controls input[type=range] { width: 200px; accent-color: #111; }
+  .controls .val { font-weight: 700; color: #111; min-width: 48px; }
+  .controls .seg { display: inline-flex; border: 1px solid rgba(0,0,0,0.12); border-radius: 999px; overflow: hidden; }
+  .controls .seg button {
+    border: none; padding: 4px 10px; cursor: pointer;
+    background: transparent; color: #888;
+    font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
+    transition: all 0.12s;
+  }
+  .controls .seg button.active { background: #111; color: #fff; }
+  .controls .preset { display: inline-flex; gap: 4px; }
+  .controls .preset button {
+    border: 1px solid rgba(0,0,0,0.12); background: #fff;
+    padding: 3px 8px; border-radius: 4px; cursor: pointer;
+    font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700;
+    color: #555;
+  }
+  .controls .preset button:hover { background: #111; color: #fff; }
+
+  .frame {
+    overflow: hidden;
+    border-radius: 12px;
+    box-shadow: 0 16px 50px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.04);
+    transition: width 0.22s cubic-bezier(.2,.7,.3,1), height 0.22s cubic-bezier(.2,.7,.3,1), background 0.18s;
+    position: relative;
+    resize: both;
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="components/shared.jsx"></script>
+<script type="text/babel" src="components/var-b-zen.jsx"></script>
+
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+const MIN_W = 360;
+const MAX_W = 1100;
+const MIN_H = 480;
+const MAX_H = 900;
+
+const PRESETS = [
+  { label: 'COMPACT', w: 380, h: 600 },
+  { label: 'STANDARD', w: 720, h: 600 },
+  { label: 'WIDE', w: 980, h: 720 },
+];
+
+function App() {
+  if (!window.SVZAK_DATA || !window.VarB) {
+    return <div style={{ padding: 30, fontFamily: 'monospace' }}>Loading…</div>;
+  }
+  const [mode, setMode] = useState('light');
+  const [tab, setTab] = useState('루틴');
+  const [w, setW] = useState(720);
+  const [h, setH] = useState(600);
+
+  // observe resize handle
+  const frameRef = useRef(null);
+  useEffect(() => {
+    if (!frameRef.current) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const ent of entries) {
+        const { width, height } = ent.contentRect;
+        // ignore tiny rounding deltas
+        if (Math.abs(width - w) > 2) setW(Math.round(width));
+        if (Math.abs(height - h) > 2) setH(Math.round(height));
+      }
+    });
+    ro.observe(frameRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  const VarB = window.VarB;
+  return (
+    <>
+      <div className="controls">
+        <span>WIDTH</span>
+        <input type="range" min={MIN_W} max={MAX_W} step={10} value={w} onChange={(e) => setW(parseInt(e.target.value, 10))} />
+        <span className="val">{w}px</span>
+        <span style={{ color: '#bbb' }}>·</span>
+        <span>HEIGHT</span>
+        <input type="range" min={MIN_H} max={MAX_H} step={10} value={h} onChange={(e) => setH(parseInt(e.target.value, 10))} />
+        <span className="val">{h}px</span>
+        <span style={{ color: '#bbb' }}>·</span>
+        <span className="preset">
+          {PRESETS.map((p) => (
+            <button key={p.label} onClick={() => { setW(p.w); setH(p.h); }}>{p.label}</button>
+          ))}
+        </span>
+        <span style={{ color: '#bbb' }}>·</span>
+        <span className="seg">
+          <button className={mode === 'light' ? 'active' : ''} onClick={() => setMode('light')}>LIGHT</button>
+          <button className={mode === 'dark' ? 'active' : ''} onClick={() => setMode('dark')}>DARK</button>
+        </span>
+      </div>
+      <div className="frame" ref={frameRef} style={{
+        width: w, height: h,
+        background: mode === 'dark' ? '#0a0a09' : '#fafaf7',
+      }}>
+        <VarB.App mode={mode} activeTab={tab} width={w} onTabChange={setTab} />
+      </div>
+      <div style={{
+        marginTop: 12,
+        fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: '#999', letterSpacing: '0.08em',
+      }}>
+        ⤡ 모서리를 드래그해서 크기 조절 가능 · 슬라이더로도 조절 가능
+      </div>
+    </>
+  );
+}
+
+function tryMount() {
+  if (window.SVZAK_DATA && window.VarB) {
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  } else {
+    setTimeout(tryMount, 60);
+  }
+}
+tryMount();
+</script>
+</body>
+</html>
