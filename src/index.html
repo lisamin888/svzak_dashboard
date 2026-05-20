@@ -498,7 +498,7 @@ html, body {
 }
 .task-add-input::placeholder { color: var(--sub); }
 
-/* ── OT COMPLETED SIDE ── */
+/* ── OT SIDE LIST ── */
 .ot-done-label {
   font-family: var(--font-mono);
   font-size: 9px;
@@ -508,10 +508,21 @@ html, body {
   text-transform: uppercase;
 }
 .ot-done-item {
-  padding: 12px 0;
+  padding: 10px 8px;
   border-bottom: 1px solid var(--hair);
   color: var(--done);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.1s;
+  margin-bottom: 2px;
 }
+.ot-done-item:hover { background: var(--faint); }
+.ot-done-item.selected { background: var(--faint); }
+.ot-done-item.active-ot { color: var(--fg); }
+.ot-done-item.active-ot .ot-done-text { text-decoration: none; font-weight: 600; }
+.ot-done-item.active-ot .ot-done-period { color: var(--accent); }
+.ot-done-item.status-보류 .ot-done-text { text-decoration: none; }
+.ot-done-item.status-보류 .ot-done-period { opacity: 0.6; }
 .ot-done-period {
   font-family: var(--font-mono);
   font-size: 10px;
@@ -1091,7 +1102,7 @@ html, body {
         </div>
         <!-- SIDE: 완료 목록 -->
         <div>
-          <div class="ot-done-label">완료</div>
+          <div class="ot-done-label">원씽 목록</div>
           <div id="otDoneList"></div>
           <button class="ot-new-btn">+ Notion에서 원씽 추가</button>
         </div>
@@ -1200,14 +1211,17 @@ const TODAY_IDX = (new Date().getDay() + 6) % 7
 let WEEKLY_PLAN = { range: '', items: [] }
 
 let OT_ACTIVE = {
+  id: '',
   text: '인스타그램 포트폴리오를 완성해 첫 번째 인바운드 클라이언트 문의를 받는 것',
   period: '2026.01 — 현재',
   status: '진행중',
 }
 let OT_DONE = [
-  { text:'프리다이빙 키체인을 Etsy에 출시하는 것', period:'2025.11 — 2025.12' },
-  { text:'SVZAK 웹사이트를 Next.js + Vercel로 마이그레이션하는 것', period:'2025.10 — 2025.11' },
+  { id:'', text:'프리다이빙 키체인을 Etsy에 출시하는 것', period:'2025.11 — 2025.12', status:'완료' },
+  { id:'', text:'SVZAK 웹사이트를 Next.js + Vercel로 마이그레이션하는 것', period:'2025.10 — 2025.11', status:'완료' },
 ]
+let OT_SELECTED_ID = null  // null = 진행중 원씽
+let OT_TASKS_CACHE = {}
 
 const DEFAULT_PLANNING = [
   {
@@ -2041,41 +2055,70 @@ function renderPlanningResult() {
 }
 
 // ─── ONE THING ───────────────────────────────────────────
-function renderOneThing() {
-  document.getElementById('otMeta').textContent = `● ${OT_ACTIVE.status} · ${OT_ACTIVE.period}`
-  document.getElementById('otTitle').textContent = OT_ACTIVE.text
+async function selectOT(id) {
+  if (!id || id === OT_ACTIVE.id) {
+    OT_SELECTED_ID = null
+  } else {
+    OT_SELECTED_ID = id
+    if (!OT_TASKS_CACHE[id]) {
+      const result = await ipcRenderer.invoke('notion-fetch-ot-tasks', id)
+      OT_TASKS_CACHE[id] = Array.isArray(result) ? result : []
+    }
+  }
+  renderOneThing()
+}
 
-  const done = state.weekChecks.filter(c => c.done).length
-  const total = state.weekChecks.length
+function renderOneThing() {
+  const isActive = !OT_SELECTED_ID || OT_SELECTED_ID === OT_ACTIVE.id
+  const selectedOT = isActive ? OT_ACTIVE : (OT_DONE.find(o => o.id === OT_SELECTED_ID) || OT_ACTIVE)
+  const tasks = isActive ? state.weekChecks : (OT_TASKS_CACHE[OT_SELECTED_ID] || [])
+
+  document.getElementById('otMeta').textContent = `● ${selectedOT.status} · ${selectedOT.period}`
+  document.getElementById('otTitle').textContent = selectedOT.text
+
+  const done = tasks.filter(c => c.done).length
+  const total = tasks.length
   const pct = total === 0 ? 0 : Math.round(done / total * 100)
   document.getElementById('otProgressLabel').textContent = `${done}/${total} · ${pct}%`
   document.getElementById('otBarFill').style.width = pct + '%'
 
   const list = document.getElementById('weekChecks')
   list.innerHTML = ''
-  state.weekChecks.forEach((item, i) => {
+  tasks.forEach((item, i) => {
     const row = document.createElement('div')
     row.className = 'task-row' + (item.done ? ' done' : '')
     row.innerHTML = `
       <div class="task-check">${item.done ? '✓' : ''}</div>
       <div class="task-text">${item.text}</div>
     `
-    row.addEventListener('click', () => {
-      state.weekChecks[i].done = !state.weekChecks[i].done
-      if (item.notionPageId) {
-        ipcRenderer.invoke('notion-check-task', item.notionPageId, state.weekChecks[i].done)
-      }
-      renderOneThing(); renderHero(); renderCondition(); save()
-    })
+    if (isActive) {
+      row.addEventListener('click', () => {
+        state.weekChecks[i].done = !state.weekChecks[i].done
+        if (item.notionPageId) {
+          ipcRenderer.invoke('notion-check-task', item.notionPageId, state.weekChecks[i].done)
+        }
+        renderOneThing(); renderHero(); renderCondition(); save()
+      })
+    }
     list.appendChild(row)
   })
 
-  document.getElementById('otDoneList').innerHTML = OT_DONE.map(item => `
-    <div class="ot-done-item">
-      <div class="ot-done-period">${item.period}</div>
-      <div class="ot-done-text">${item.text}</div>
-    </div>
-  `).join('')
+  const addRow = document.querySelector('.task-add-row')
+  if (addRow) addRow.style.display = isActive ? '' : 'none'
+
+  const allOTs = [
+    { id: OT_ACTIVE.id, text: OT_ACTIVE.text, period: OT_ACTIVE.period, status: '진행중' },
+    ...OT_DONE,
+  ].sort((a, b) => b.id.localeCompare(a.id))
+  document.getElementById('otDoneList').innerHTML = allOTs.map(ot => {
+    const sel = isActive ? (ot.id === OT_ACTIVE.id) : (ot.id === OT_SELECTED_ID)
+    const isActiveOt = ot.status === '진행중'
+    return `<div class="ot-done-item${sel ? ' selected' : ''}${isActiveOt ? ' active-ot' : ''} status-${ot.status}"
+        onclick="selectOT('${ot.id}')">
+      <div class="ot-done-period">${ot.period || '—'}</div>
+      <div class="ot-done-text">${ot.text}</div>
+    </div>`
+  }).join('')
 }
 
 function addCheck() {
@@ -2239,8 +2282,9 @@ function applyNotionData(data) {
   // OT_DONE (완료된 원씽)
   if (data.otList && data.otList.length > 0) {
     OT_DONE = data.otList
-      .filter(o => o.status === '완료')
-      .map(o => ({ text: o.title, period: o.period }))
+      .filter(o => o.id !== data.currentOT?.id)
+      .map(o => ({ id: o.id, text: o.title, period: o.period, status: o.status }))
+    OT_TASKS_CACHE = {}
   }
   renderHero()
   renderCondition()

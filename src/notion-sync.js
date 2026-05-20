@@ -135,4 +135,18 @@ async function updatePlanningDone(token, pageId, done) {
   })
 }
 
-module.exports = { syncFromNotion, updateTaskDone, updatePlanningDone }
+async function fetchTasksForOT(token, otId) {
+  const notion = new Client({ auth: token })
+  const res = await notion.databases.query({
+    database_id: DB_IDS.tasks,
+    filter: { property: '원씽', select: { equals: otId } },
+    sorts: [{ property: '순서', direction: 'ascending' }],
+  })
+  return res.results.map(p => ({
+    notionPageId: p.id,
+    text: txt(p.properties['태스크']),
+    done: !!p.properties['완료']?.checkbox,
+  })).filter(t => t.text)
+}
+
+module.exports = { syncFromNotion, updateTaskDone, updatePlanningDone, fetchTasksForOT }

@@ -1,7 +1,7 @@
 const { app, BrowserWindow, ipcMain, screen } = require('electron')
 const path = require('path')
 const Store = require('electron-store')
-const { syncFromNotion, updateTaskDone, updatePlanningDone } = require('./src/notion-sync')
+const { syncFromNotion, updateTaskDone, updatePlanningDone, fetchTasksForOT } = require('./src/notion-sync')
 
 const store = new Store()
 
@@ -92,6 +92,16 @@ ipcMain.handle('notion-check-task', async (e, pageId, done) => {
   const token = store.get('notionToken', '')
   if (!token) return
   try { await updateTaskDone(token, pageId, done) } catch (err) {}
+})
+
+ipcMain.handle('notion-fetch-ot-tasks', async (e, otId) => {
+  const token = store.get('notionToken', '')
+  if (!token) return { error: 'NO_TOKEN' }
+  try {
+    return await fetchTasksForOT(token, otId)
+  } catch (err) {
+    return { error: err.message || 'FETCH_FAILED' }
+  }
 })
 
 ipcMain.handle('notion-check-planning', async (e, pageId, done) => {
